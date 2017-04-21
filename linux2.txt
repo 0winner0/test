@@ -1,0 +1,741 @@
+进程相关的概念
+	程序和进程
+	程序，指编译好的二进制文件
+	进程，是一个 抽象的概念，与操作系统联系密切，需要系统资源
+	
+并发
+	单道程序设计模式
+	多道程序设计模式
+	cpu/mmu 1.虚拟内存与物理内存的映射
+		2.
+		虚拟地址空间 4g
+		0x12345678 int a = 10;
+		物理地址: 1000 
+
+进程控制块 PCB
+	位于内核，linux内核中的进程控制块是task_struct结构体
+	
+	进程ID，唯一的  pid_t
+	进程状态：初始化，就绪 运行，挂起，停止
+	进程切换时需要保存的和恢复的cpu寄存器的值
+	描述虚拟地址空间的信息
+	描述控制终端的信息
+	当前工作目录
+	umask掩码
+	文件描述符表 1024数组
+	和信号相关的信息
+	用户id，组id
+	会话session，进程组
+	进程可以使用的资源上限 ulimit -a
+
+环境变量
+指的是操作系统中用来指定操作系统运行环境的一些参数
+1.字符串 2.用统一的格式，key=value1:value2 3.描述进程信息
+引入环境变量表  extern char ** environ;
+PATH
+函数
+	getenv char *getenv(const char *name);
+
+	setenv int setenv(const char *name, const char *value, int overw
+
+进程控制
+	fork - create a child process
+	pid_t fork(void);
+	返回值有2个 一个进程--->2个进程---->各自fork返回值
+		1.返回子进程id（> 0）父进程
+		2.返回 0 子进程
+
+
+	进程共享
+	父子进程fork();之后，那些事相同的那些是不同的？
+	anme: .data .text stack heap env uid gid home 
+	different: id fork返回值 运行时间 闹钟(定时器) 未决信号集
+	读时共享写时复制 物理内存
+		文件描述符
+		mmap建立的映射区
+gdb调试
+
+在fork();函数调用之前
+执行
+	set follow-fork-mode child
+	set follow-fork-mode parent 
+
+exec函数族
+	execlp函数
+	加载一个进程，借助环境PATH变量
+	 int execlp(const char *file, const char *arg, ...
+                       /* (char  *) NULL */);
+
+	execl函数
+	加载一个进程，通过 路径 + 程序名 来加载
+
+	execle
+
+	execlv
+	只有失败返回值 -1
+
+回收子进程
+
+孤儿进程
+僵尸进程
+	wait函数
+	pid_t wait(int *status);
+		成功返回 pid 失败返回 -1
+		status传出参数，获取进程状态
+		1.阻塞等待子进程
+		2.回收子进程资源
+		3.获取子进程结束状态
+		正常结束: WIFEXITED(status)	WEXITSTATUS(status)
+		异常结束: WIFSIGNALED(status)	WTERMSIG(status)
+
+	pid_t waitpid(pid_t pid,int *status,int option);
+		pid > 0 回收指定子进程
+		= -1回收任意子进程
+		参数1: pid > 0 回收指定子进程
+			= -1回收任意子进程
+			= 0 回收本组任意子进程
+			< -1回收指定进程组任意子进程
+		参数2: status
+		参数3: 0 阻塞回收
+			WNOHANG ，子进程没有结束 返回 0
+
+		返回值
+			成功返回 pid
+			失败 -1
+			返回为0时，子进程没有结束 WNOHANG
+===================================================================
+
+进程间通信 IPC
+1.管道
+int mkfifo(const char *pathname, mode_t mode);
+	pipe
+	fifo
+	伪文件默认4kb
+
+	linux内核环形队列，从读端流出
+	局限性 
+	1.数据自己读不能自己写
+	2.数据一旦读走，便在管道中不存在，不可以反复读取
+	3.由于管道采用半双工通信，数据只能在一个方向上流动
+	4.只能在有公共祖先的进程间通信
+pipe函数
+int pipe(int pipefd[2]);
+int pipe2(int pipefd[2], int flags);
+
+	pid[0] 读
+	pid[1] 写
+
+fifo
+
+
+
+2.信号
+
+概念：共性：1.简单 2.不能携带大量信息 3.满足某个特定的条件才发送
+信号是信息的载体，
+软中断，延时性，但对用户来说，不易察觉
+
+信号的处理机制：每个进程收到的信号，都是linux内核负责发送的，内核处理
+
+基本属性
+信号的4要素
+1.编号，2.名称，3.默认处理动作，4.事件
+
+=================================================
+
+ 1) SIGHUP	 2) SIGINT	 3) SIGQUIT	 4) SIGILL	 5) SIGTRAP
+ 6) SIGABRT	 7) SIGBUS	 8) SIGFPE	 9) SIGKILL	10) SIGUSR1
+11) SIGSEGV	12) SIGUSR2	13) SIGPIPE	14) SIGALRM	15) SIGTERM
+16) SIGSTKFLT	17) SIGCHLD	18) SIGCONT	19) SIGSTOP	20) SIGTSTP
+21) SIGTTIN	22) SIGTTOU	23) SIGURG	24) SIGXCPU	25) SIGXFSZ
+26) SIGVTALRM	27) SIGPROF	28) SIGWINCH	29) SIGIO	30) SIGPWR
+31) SIGSYS	34) SIGRTMIN	35) SIGRTMIN+1	36) SIGRTMIN+2	37) SIGRTMIN+3
+38) SIGRTMIN+4	39) SIGRTMIN+5	40) SIGRTMIN+6	41) SIGRTMIN+7	42) SIGRTMIN+8
+43) SIGRTMIN+9	44) SIGRTMIN+10	45) SIGRTMIN+11	46) SIGRTMIN+12	47) SIGRTMIN+13
+48) SIGRTMIN+14	49) SIGRTMIN+15	50) SIGRTMAX-14	51) SIGRTMAX-13	52) SIGRTMAX-12
+53) SIGRTMAX-11	54) SIGRTMAX-10	55) SIGRTMAX-9	56) SIGRTMAX-8	57) SIGRTMAX-7
+58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2
+63) SIGRTMAX-1	64) SIGRTMAX	
+
+=================================================
+
+默认处理动作
+	term 终止进程
+	ign 忽略信号
+	core 终止进程，生成core文件
+	stop 暂停
+	continue 继续
+
+	注意：9,19 不允许忽略和捕捉，只能执行默认动作。更不能设置为阻塞
+
+
+产生信号的5中方式
+	1.按键产生，Ctrl + c
+	2.系统调用，kill
+	3.软件产生，alarm
+	4.硬件产生，非法访问内存（段错误），浮点数例外，总线错误
+	5.命令产生，kill命令
+状态
+
+
+信号集的操作函数
+	信号屏蔽字
+
+	未决信号集
+
+信号的处理方式：
+	1.默认动作
+	2.忽略（丢弃）
+	3.捕捉（调用用户函数）
+
+信号的捕捉
+	注册信号捕捉函数
+
+	sigaction函数(重点):
+
+按键产生
+	Ctrl + c	2)SIGINT(中断)
+	ctrl + z	20)SIGTSTP(暂停)
+	ctrl + \	3)SIGQUIT(退出)
+硬件异常
+	/0	8)SINFPE
+	非法访问内存	11)SIGEGV
+	总线错误	7)SIGBUS
+kill函数或命令
+	int kill(pid_t pid, int sig);
+raise();相当于 kill(getpid(),sig);
+abort();
+
+软件条件产生
+每个进程有且仅有一个定时器
+unsigned int alarm(unsigned int seconds);
+发送 14)SIGALARM
+alarm(0);
+time 命令
+
+实际执行时间 = 系统时间 + 用户时间 + 等待时间
+
+setitimer();函数
+精度微秒
+ int setitimer(int which, const struct itimerval *new_value/*in*/,
+               struct itimerval *old_value/*OUT*/);
+	方式:
+	        ITIMER_REAL	SIGNALRM
+		ITIMER_VIRTUAL	26)SIGVTALRM
+		ITIMER_PROF	27)SIGPROF
+
+	   struct itimerval {
+               struct timeval it_interval; /* Interval for periodic timer */
+               struct timeval it_value;    /* Time until next expiration */
+           };
+
+           struct timeval {
+               time_t      tv_sec;         /* seconds */
+               suseconds_t tv_usec;        /* microseconds */
+           };
+
+信号的捕捉
+信号的注册
+
+	signal
+	typedef void (*sighandler_t)(int);
+
+	sighandler_t signal(int signum, sighandler_t handler);
+
+	sigaction函数
+	int sigaction(int signum, const struct sigaction *act,
+                     struct sigaction *oldact);
+
+           struct sigaction {
+               void     (*sa_handler)(int);
+               void     (*sa_sigaction)(int, siginfo_t *, void *);
+               sigset_t   sa_mask;
+               int        sa_flags;
+               void     (*sa_restorer)(void);
+           };
+	信号捕捉函数执期间
+		sa_mask 信号屏蔽字
+		sa_flags = 0；屏蔽本身信号
+		
+	信号捕捉函数执行期间，信号多次抵达，只记录一次
+
+
+
+信号集操作函数
+信号集的设定
+	sigset_t set;//typedef unsigned long sigset_t;
+	
+	int sigemptyset(sigset_t *set);
+
+	int sigfillset(sigset_t *set);
+
+	int sigaddset(sigset_t *set,int signum);
+
+	int sigdeleteset(sigset_t *set,int signum);
+
+	int sigismember(sigset_t *set,int signum);
+
+sigprocmask函数
+设置屏蔽，解除屏蔽
+	int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+	
+	SIG_BLOCK
+	SID_UNBLOCK
+	SIG_SETMAX
+
+sigpending(sigset_t *set)函数
+sigpending函数返回在送往进程的时候被阻塞挂起的信号集合。这个信号集合通过参数set返回。
+返回未决信号集
+========================
+
+竞态条件
+	pause函数：
+
+	int pause(void);
+	调用该函数可以造成进程主动挂起，等待信号唤醒，处于阻塞状态
+	
+	通过pause();和alarm();实现sleep();函数
+
+	sleep函数：
+	sigsuspend();函数
+	int sigsuspend(const sigset_t *mask);
+
+
+	时序竞态：
+
+	全局变量异步io:
+
+
+	可重入函数， 不可重入函数：
+	1、信号捕捉函数。为可重入函数
+	2、可重入函数，没有全局变量，static变量，malloc，free
+	3、可重入函数的程序中，包含可重入函数，参阅 man 7 signal
+
+
+SIGCHLD 信号：
+产生条件，子进程的中断
+	通过SIGCHLD,回收子进程：
+
+信号传参：
+发送信号传递参数
+	sigqueue函数
+	int sigqueue(pid_t pid, int sig, const union sigval value);
+	
+	union sigval {
+               int   sival_int;
+               void *sival_ptr;
+        };
+	向进程发送信号的同时可以携带数据，但是传地址的时候
+	要注意，不同进程之间的虚拟地址空间是不同的
+	如果传递地址，可以给本进程发送信号
+
+捕捉信号传递参数
+	sigaction函数
+	int sigaction(int signum, const struct sigaction *act,
+               struct sigaction *oldact);
+
+	 struct sigaction {
+               void     (*sa_handler)(int);
+               void     (*sa_sigaction)(int, siginfo_t *, void *);
+               sigset_t   sa_mask;
+               int        sa_flags;
+               void     (*sa_restorer)(void);
+         };
+	
+
+
+信号中断系统调用：
+	系统调用的分类
+	1、慢速系统调用 ，造成程序永久阻塞
+		read write pause wait
+	2、其他系统调用 
+		getpid getppid fork
+
+
+终端：所有输入输出设备的总称
+alt + f1 ，f2 ， f3 ，f4. f5，f6 字符终端
+	伪终端
+alt + f7图形终端
+	网络终端
+
+	ttyname函数
+
+进程组：
+进程组操作函数
+	gerpgrp函数，获取当前进程组的ID
+		pid_t getpgrp(void); 
+
+	getpgid函数，获取指定进程组的id
+		pid_t getpgid(pid_t pid);
+
+	setpgid函数，改变进程默认的进程组，
+		int setpgid(pid_t pid, pid_t pgid);
+
+回话：一组进程组的集合
+创建回话的注意事项六点：
+
+	1、调用进程不能是进程组的组长，该进程会变成新会话的会话首进程
+	2、该进程成为新进程的组长进程
+	3、需要有root权限（unbantu不需要）
+	4、新会话会丢弃原有的控制终端，该会话没有终端
+	5、该调用进程是组长进程，则出错返回
+	6、建立会话时，先调用fork，父进程终止，子进程调用setsid
+
+setsid函数
+pid_t setsid(void);
+
+getsid函数
+pid_t getsid(pid_t pid);
+
+
+守护进程：
+是linux中的后台进程，独立于控制终端，周期性的执行某种任务
+或等待处理某些突发事件，一般采用以d结尾的名字
+
+编写守护进程
+	1、创建子进程，父进程退出	fork
+	2、在子进程中创建回话	setsid
+	3、改变当前目录为根目录，防止占用可卸载的文件系统，也可以换成其他目录 chdir
+	4、重设文件权限掩码	unmask
+	5、关闭文件描述符 0、1、2，或重定向到/dev/null
+	6、开始执行守护进程的核心工作
+	7、守护进程退出模型
+
+===================================================================
+
+3.共享映射qu
+	mmap函数
+	void *mmap(void *addr, size_t length, int prot, int flags,
+                  int fd, off_t offset);
+	addr NULL
+	length 磁盘文件大小
+	prot 映射区的权限 PROT_READ PROT_WRITE PROT_READ|PROT_WRITE
+	flag 内存做的修改反映到磁盘上 MAP_SHARED MAP_PRIVATE
+	fd 文件描述符
+	offset 偏移量 4k的整数倍
+
+	返回值 成功返回创建的首地址
+		失败 MAP_FAILED
+	创建的映射区权限<=文件的权限
+	映射区隐含了一次读文件
+		常见错误 段错误 总线错误 浮点数例外
+
+
+	父子进程之间，血缘关系，通信
+	MAP_SHARED
+	MAP_PRIVATE
+
+	父子间通信，1打开的文件 2. mmap创建的映射区
+
+	匿名映射区 MAP_ANONYMOUS MAP_ANON
+		int *p = mmap(NULL,1024,PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+
+		/dev/zero
+	非血缘关系进程通信
+
+
+4.本地套接字
+
+=================================================
+
+线程
+
+线程概念
+LWP light weight process 轻量级的进程，本质任然是进程（linux下）
+进程：独立的地址空间，拥有PCB，进程描述符
+线程：也有PCB，但没有独立的地址空间
+区别：有无独立的地址空间
+linux下：
+	线程是最小执行单位
+	进程最小分配资源单位，可以看成只有一个线程的进程
+	
+linux内核线程实现原理：
+	1、clone函数
+	2、三级映射
+	3、进程可以蜕变成线程
+	4、线程可以看作是寄存器和栈的集合
+	5、linux下
+		线程是最小执行单位
+		进程最小分配资源单位，可以看成只有一个线程的进
+	LWP号
+
+
+	线程与进程的关系
+	
+	线程共享与非共享资源
+
+	共享资源
+	1、文件描述表
+	2、信号的处理方式
+	3、当前工作目录
+	4、用户ID和组ID
+	6、内存地址空间（.text .datd .heap 共享库）
+	
+	非共享资源
+	1、线程ID
+	2、寄存器的值，栈指针（内核）
+	3、独立的栈空间，函数运行空间
+	4、errno变量
+	5、信号屏蔽字
+	6、调度优先级，线程优先级
+
+	线程的优缺点
+	优点
+	提高程序的并发性
+	开销小
+	数据通信，共享数据方便
+	缺点
+	库函数，不稳定
+	调试，编写困难，gdb不支持
+	对信号的支持不好
+
+线程控制原语
+	
+	pthread_self函数
+        pthread_t pthread_self(void);
+
+	pthread_create函数
+	int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                         void *(*start_routine) (void *), void *arg);
+
+	循环创建多个线程
+
+	线程共享全局变量
+
+	pthread_exit();函数
+	void pthread_exit(void *retval);
+	pthread_exit与return、exit的区别
+
+	return	返回值到调用者
+	exit 进程退出
+
+	pthread_join();函数，回收线程，阻塞等待线程退出，获取线程退出状态
+	int pthread_join(pthread_t thread, void **retval);
+	
+	pthread_detach();函数实现线程分离，网络和多线程的服务器中经常使用
+	int pthread_detach(pthread_t thread);
+	
+	pthread_cancel();函数
+	int pthread_cancel(pthread_t thread);
+	注意：杀死线程并不是实时的，需要程序到达一个取消点，如进行系统调用 read write open pause 
+	自己添加取消点 pthread_testcancel();函数
+	void pthread_testcancel(void);
+	man 7 pthreads
+
+	pthread_equal();函数
+	int pthread_equal(pthread_t t1, pthread_t t2);
+
+	进程与线程的对比
+	fork	pthread_create
+	wait	pthread_join
+	exit	pthread_exit
+	kill	pthread_cancel
+	getpid	pthread_self
+		pthread_detach 线程运行结束,自动清理PCB
+
+线程属性
+	线程属性的初始化
+	int pthread_attr_init(pthread_attr_t *attr);
+
+	销毁线程属性所占资源
+	int pthread_attr_destroy(pthread_attr_t *attr);
+
+	线程分离状态
+	int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);
+	int pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachst
+	
+	线程设置栈空间32751
+	int pthread_attr_setstack(pthread_attr_t *attr,
+                                 void *stackaddr, size_t stacksize);
+	int pthread_attr_getstack(const pthread_attr_t *attr,
+                                 void **stackaddr, size_t *stacksize);
+	
+	int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize);
+	int pthread_attr_getstacksize(const pthread_attr_t *attr, size_t *stacksize);
+
+NUPL
+	查看当前版本	
+
+线程注意事项
+	1、主线程，pthread_exit();
+	2、避免僵尸线程 pthread_join pthread_detach
+	3、malloc 和 mmap可以由其他线程释放
+	4、避免在多线程调用fork，子进程中只有调用fork的线程存在，其他线程pthread_exit();
+	5、避免使用信号
+
+==============================
+
+线程同步
+
+	同步：指一个线程，发出某一个功能调用时，在没有得到结果之前
+	该调用不返回，同时其他线程为了保持数据的一致性，不能调用该功能
+
+	互斥量（互斥锁）mutex
+	pthread_mutex
+
+	pthread_mutex_init();
+	int pthread_mutex_init(pthread_mutex_t *restrict mutex,
+           const pthread_mutexattr_t *restrict attr);
+	restrict关键字作用，限制指针，所有修改该指针指向的内存的操作
+	只能通过本指针来修改
+
+	pthread_mutex_destory();
+	int pthread_mutex_destroy(pthread_mutex_t *mutex);
+
+	pthread_mutex_lock();阻塞等待
+	pthread_mutex_trylock();枷锁失败，返回
+	pthread_mutex_unlock();
+
+	int pthread_mutex_lock(pthread_mutex_t *mutex);--
+        int pthread_mutex_trylock(pthread_mutex_t *mutex);--
+        int pthread_mutex_unlock(pthread_mutex_t *mutex);++
+
+
+	pthread_mutex_t 类型，本质是一个结构体，可以看成一个整数
+	初始化 1
+	加锁成功 0
+	解锁成功 1
+	只有两种取值 0 1
+
+	锁的粒度，越小越好
+
+	死锁
+	1、线程试图对同一互斥量加锁两次
+	2、线程1拥有A锁，请求获得B锁，线程2拥有B锁，请求获得A锁
+	避免的方法
+	1、加锁完立即解锁
+	2、当不能获取所有的锁是，主动放弃已有的锁
+
+	读写锁
+		pthread_rwlock
+
+		主要函数
+		int pthread_rwlock_destroy(pthread_rwlock_t *rwlock);
+		int pthread_rwlock_init(pthread_rwlock_t *restrict rwlock,
+			const pthread_rwlockattr_t *restrict attr);
+		int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock);
+		int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock);
+		int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock);
+		int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock);
+		int pthread_rwlock_unlock(pthread_rwlock_t *rwlock);
+
+
+	条件变量
+		条件变量，本身不是锁，但他可以，造成进程阻塞，通常与互斥锁配合使用，给线程提供一个回合的场所
+		
+		pthread_cond_wait();
+
+		相关的函数
+		int pthread_cond_destroy(pthread_cond_t *cond);
+		int pthread_cond_init(pthread_cond_t *restrict cond,
+			const pthread_condattr_t *restrict attr);
+		
+		int pthread_cond_wait(pthread_cond_t *restrict cond,
+			pthread_mutex_t *restrict mutex);
+			作用；
+			1、阻塞等待一个条件变量满足
+			2、释放已经掌握的互斥锁，相当于调用了pthread_mutex_unlock(&mutex);
+				1、2两步为一个原子操作
+			3、当被唤醒，pthread_cond_wait();函数返回，解除阻塞，重新申请获取互斥锁pthread_mutex_lock(&mutex,NULL);
+		
+		int pthread_cond_signal(pthread_cond_t *cond);
+		int pthread_cond_broadcast(pthread_cond_t *cond);
+
+		int pthread_cond_timedwait(pthread_cond_t *restrict cond,
+			pthread_mutex_t *restrict mutex,
+				const struct timespec *restrict abstime);
+		绝对时间：1970 1 1 0.0.0	unix计时员年
+			time_cur = time(NULL);
+			struct timesped t;
+			t.tv_sec = time_cur + 1;
+			t.tv_ = 0;
+
+	   struct timespec {
+               time_t tv_sec;      /* Seconds */
+               long   tv_nsec;     /* Nanoseconds [0 .. 999999999] */
+           };
+
+		
+	使用场景：生产者与消费者模型，优点可以减少不必要的的竞争
+
+		
+	信号量：互斥量的升级版
+	信号量的初值，决定了占用信号量的线程个数
+
+	sem
+
+	sem_init();
+        int sem_init(sem_t *sem, int pshared, unsigned int value);
+        int sem_destroy(sem_t *sem);
+
+	sem_wait();
+	sem_trywait();
+	sem_timedwait();
+	sem_post();
+
+
+进程间同步
+	
+	互斥锁，也可以用于进程间同步，通过想设置属性，但应在pthread_mutex_init();
+	函数之前。
+	定义mutex属性：pthread_mutexattr_t mattr;
+	pthread_mutexattr_init(pthread_mutexattr_t mattr);
+	pthread_mutexattr_destroy(pthread_mutexattr_t mattr);
+	pthread_mutexattr_setpshared(pthread_mutexattr_t mattr;,int pshared);
+
+	pshared的值：
+	1）PTHREAD_PROCESS_PRIVATE(默认属性，线程间同步)
+	2）PTHREAD_PROCESS_SHARED，进程间同步
+
+
+	信号量
+	
+	文件锁
+	借助fcntl函数来实现，
+	int fcntl(int fd, int cmd, ... /* arg */ );
+	
+	F_SETLK(struct flock *);trylock
+	F_SETLKW(struct flock *);lock，wait
+	F_GETLK(struct flock *);获取文件锁
+
+	struct flock {
+               ...
+               short l_type;    /* Type of lock: F_RDLCK,
+                                   F_WRLCK, F_UNLCK */
+               short l_whence;  /* How to interpret l_start:
+                                   SEEK_SET, SEEK_CUR, SEEK_END */
+               off_t l_start;   /* Starting offset for lock */
+               off_t l_len;     /* Number of bytes to lock */
+               pid_t l_pid;     /* PID of process blocking our lock
+                                   (set by F_GETLK and F_OFD_GETLK) */
+               ...
+           };
+	
+	struct flock flock;
+
+	flock.l_type = F_RDLCK;
+	fcntl(fd,F_SETLKW,&flock);
+
+	flock.l_type = F_UNLCK;
+	fcntl(fd,F_SETLKW,&flock);
+
+	多线程中无法使用文件锁，应为线程间共享文件描述符
+
+	哲学家用餐问题
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
